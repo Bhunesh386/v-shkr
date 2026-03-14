@@ -7,7 +7,7 @@ import { CategoryBadge } from '../components/CategoryBadge'
 import { formatCurrency, getCurrentMonthRange, cn } from '../lib/utils'
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell
+  PieChart, Pie, Cell, Legend, Label
 } from 'recharts'
 import { 
   TrendingUp, TrendingDown, Wallet, ArrowLeftRight, CreditCard, 
@@ -34,6 +34,33 @@ const container = {
 const item = {
   hidden: { opacity: 0, y: 20 },
   show: { opacity: 1, y: 0 }
+}
+
+const mockMonthlyData = [
+  { month: 'Oct', amount: 8200 },
+  { month: 'Nov', amount: 12400 },
+  { month: 'Dec', amount: 9800 },
+  { month: 'Jan', amount: 15200 },
+  { month: 'Feb', amount: 7600 },
+  { month: 'Mar', amount: 11000 },
+]
+
+const mockCategoryData = [
+  { name: 'Food', value: 4200 },
+  { name: 'Transport', value: 1800 },
+  { name: 'Shopping', value: 3100 },
+  { name: 'Bills', value: 2400 },
+  { name: 'Entertainment', value: 1200 },
+]
+
+const CATEGORY_COLORS: Record<string, string> = {
+  Food: '#f97316',
+  Transport: '#3b82f6',
+  Shopping: '#ec4899',
+  Bills: '#ef4444',
+  Entertainment: '#a855f7',
+  Health: '#22c55e',
+  Other: '#6b7280',
 }
 
 export const DashboardPage = () => {
@@ -78,19 +105,40 @@ export const DashboardPage = () => {
         count: tx.length
       })
 
-      // 2. Prepare Chart Data
+      // 2. Prepare Chart Data (Last 6 Months)
+      const last6MonthsTx = tx.filter(t => t.type === 'expense');
+      const monthlyGrouping: Record<string, number> = {};
+      
+      // Get short month names for grouping
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const last6Months = Array.from({ length: 6 }, (_, i) => {
+        const d = new Date();
+        d.setMonth(d.getMonth() - (5 - i));
+        return monthNames[d.getMonth()];
+      });
+
+      last6Months.forEach(m => monthlyGrouping[m] = 0);
+      
+      last6MonthsTx.forEach(t => {
+        const date = new Date(t.date);
+        const m = monthNames[date.getMonth()];
+        if (monthlyGrouping[m] !== undefined) {
+          monthlyGrouping[m] += Number(t.amount);
+        }
+      });
+
+      const realChartData = Object.entries(monthlyGrouping).map(([month, amount]) => ({ month, amount }));
+      setChartData(realChartData.length > 0 && realChartData.some(d => d.amount > 0) ? realChartData : mockMonthlyData);
+
       const catMap: Record<string, number> = {}
       tx.filter(t => t.type === 'expense').forEach(t => {
         catMap[t.category] = (catMap[t.category] || 0) + Number(t.amount)
       })
-      setPieData(Object.entries(catMap).map(([name, value]) => ({ name, value })))
-      
-      setChartData([
-        { month: 'Week 1', amount: expenses * 0.2 },
-        { month: 'Week 2', amount: expenses * 0.35 },
-        { month: 'Week 3', amount: expenses * 0.25 },
-        { month: 'Week 4', amount: expenses * 0.2 },
-      ])
+      const realPieData = Object.entries(catMap).map(([name, value]) => ({ name, value }))
+      setPieData(realPieData.length > 0 ? realPieData : mockCategoryData)
+    } else {
+      setChartData(mockMonthlyData);
+      setPieData(mockCategoryData);
     }
 
     // 3. Recent Transactions
@@ -187,20 +235,32 @@ export const DashboardPage = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="h-[300px] w-full pt-4">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={300}>
               <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted-foreground))" opacity={0.1} />
-                <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v}`} />
-                <Tooltip 
-                  cursor={{ fill: 'hsl(var(--muted))', opacity: 0.4 }}
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    borderColor: 'hsl(var(--border))', 
-                    borderRadius: '12px'
-                  }}
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2a2a3a" />
+                <XAxis 
+                  dataKey="month" 
+                  tick={{ fill: '#888', fontSize: 12 }}
+                  tickLine={false} 
+                  axisLine={false} 
                 />
-                <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} barSize={40} />
+                <YAxis 
+                  tick={{ fill: '#888', fontSize: 12 }}
+                  tickLine={false} 
+                  axisLine={false} 
+                  tickFormatter={(v) => `₹${v}`} 
+                />
+                <Tooltip 
+                  cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+                  contentStyle={{ 
+                    backgroundColor: '#1a1a2e', 
+                    borderColor: '#2a2a3a', 
+                    borderRadius: '12px',
+                    color: '#fff'
+                  }}
+                  formatter={(value) => ['₹' + Number(value).toLocaleString('en-IN'), 'Spent']}
+                />
+                <Bar dataKey="amount" fill="#6366f1" stroke="none" radius={[6, 6, 0, 0]} barSize={40} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -212,25 +272,49 @@ export const DashboardPage = () => {
           </CardHeader>
           <CardContent className="h-[300px] flex items-center justify-center">
             {pieData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
                     data={pieData}
                     innerRadius={60}
-                    outerRadius={80}
+                    outerRadius={90}
                     paddingAngle={5}
                     dataKey="value"
                   >
-                    {pieData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={`hsl(var(--chart-${(index % 5) + 1}))`} />
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={CATEGORY_COLORS[entry.name] || CATEGORY_COLORS.Other} />
                     ))}
+                    <Label 
+                      content={({ viewBox }) => {
+                        const { cx, cy } = viewBox as any;
+                        const total = pieData.reduce((sum, d) => sum + d.value, 0);
+                        return (
+                          <text x={cx} y={cy} fill="white" textAnchor="middle" dominantBaseline="central">
+                            <tspan x={cx} dy="-0.5em" fontSize="12" fill="#888">Total</tspan>
+                            <tspan x={cx} dy="1.2em" fontSize="16" fontWeight="bold">₹{total.toLocaleString('en-IN')}</tspan>
+                          </text>
+                        );
+                      }}
+                    />
                   </Pie>
                   <Tooltip 
                     contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      borderColor: 'hsl(var(--border))', 
-                      borderRadius: '12px'
+                      backgroundColor: '#1a1a2e', 
+                      borderColor: '#2a2a3a', 
+                      borderRadius: '12px',
+                      color: '#fff'
                     }} 
+                    formatter={(value) => '₹' + Number(value).toLocaleString('en-IN')}
+                  />
+                  <Legend 
+                    layout="horizontal" 
+                    verticalAlign="bottom" 
+                    align="center"
+                    formatter={(value, entry: any) => (
+                      <span className="text-xs text-muted-foreground mr-2">
+                        {value}: ₹{entry.payload.value.toLocaleString('en-IN')}
+                      </span>
+                    )}
                   />
                 </PieChart>
               </ResponsiveContainer>
