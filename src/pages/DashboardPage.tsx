@@ -106,29 +106,28 @@ export const DashboardPage = () => {
       })
 
       // 2. Prepare Chart Data (Last 6 Months)
-      const last6MonthsTx = tx.filter(t => t.type === 'expense');
-      const monthlyGrouping: Record<string, number> = {};
-      
-      // Get short month names for grouping
-      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const last6Months = Array.from({ length: 6 }, (_, i) => {
-        const d = new Date();
-        d.setMonth(d.getMonth() - (5 - i));
-        return monthNames[d.getMonth()];
-      });
+        const d = new Date()
+        d.setMonth(d.getMonth() - (5 - i))
+        return {
+          month: d.toLocaleString('en-IN', { month: 'short' }), // "Oct", "Nov" etc
+          amount: 0
+        }
+      })
 
-      last6Months.forEach(m => monthlyGrouping[m] = 0);
+      const last6MonthsTx = tx.filter(t => t.type === 'expense');
       
       last6MonthsTx.forEach(t => {
         const date = new Date(t.date);
-        const m = monthNames[date.getMonth()];
-        if (monthlyGrouping[m] !== undefined) {
-          monthlyGrouping[m] += Number(t.amount);
+        const m = date.toLocaleString('en-IN', { month: 'short' });
+        const monthObj = last6Months.find(d => d.month === m);
+        if (monthObj) {
+          monthObj.amount += Number(t.amount);
         }
       });
 
-      const realChartData = Object.entries(monthlyGrouping).map(([month, amount]) => ({ month, amount }));
-      setChartData(realChartData.length > 0 && realChartData.some(d => d.amount > 0) ? realChartData : mockMonthlyData);
+      const finalChartData = last6Months.some(m => m.amount > 0) ? last6Months : mockMonthlyData;
+      setChartData(finalChartData);
 
       const catMap: Record<string, number> = {}
       tx.filter(t => t.type === 'expense').forEach(t => {
@@ -237,30 +236,24 @@ export const DashboardPage = () => {
           <CardContent className="h-[300px] w-full pt-4">
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2a2a3a" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3a" vertical={false} />
                 <XAxis 
                   dataKey="month" 
-                  tick={{ fill: '#888', fontSize: 12 }}
-                  tickLine={false} 
+                  tick={{ fill: '#9ca3af', fontSize: 12 }} 
                   axisLine={false} 
+                  tickLine={false} 
                 />
                 <YAxis 
-                  tick={{ fill: '#888', fontSize: 12 }}
-                  tickLine={false} 
+                  tick={{ fill: '#9ca3af', fontSize: 12 }} 
                   axisLine={false} 
-                  tickFormatter={(v) => `₹${v}`} 
+                  tickLine={false} 
+                  tickFormatter={(v) => '₹' + (v/1000) + 'k'} 
                 />
-                <Tooltip 
-                  cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
-                  contentStyle={{ 
-                    backgroundColor: '#1a1a2e', 
-                    borderColor: '#2a2a3a', 
-                    borderRadius: '12px',
-                    color: '#fff'
-                  }}
-                  formatter={(value) => ['₹' + Number(value).toLocaleString('en-IN'), 'Spent']}
+                <Tooltip
+                  contentStyle={{ background: '#13131a', border: '1px solid #2a2a3a', borderRadius: '8px', color: '#fff' }}
+                  formatter={(value: number) => ['₹' + value.toLocaleString('en-IN'), 'Spent']}
                 />
-                <Bar dataKey="amount" fill="#6366f1" stroke="none" radius={[6, 6, 0, 0]} barSize={40} />
+                <Bar dataKey="amount" fill="#6366f1" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>

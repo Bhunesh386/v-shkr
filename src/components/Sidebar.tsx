@@ -26,7 +26,7 @@ export const Sidebar = () => {
   }
 
   return (
-    <aside className="fixed left-0 top-0 hidden h-screen w-60 flex-col border-r bg-sidebar md:flex">
+    <aside className="hidden h-screen w-60 shrink-0 flex-col border-r bg-sidebar md:flex">
       <div className="flex items-center gap-2 p-6">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
           <TrendingUp className="h-5 w-5" />
